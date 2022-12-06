@@ -11,7 +11,7 @@
 
 ### 1️⃣ Can you find out where the error happened? Can you explain why the code failed now, but not before?
 
-- The error happened inside the method `next_display_name` of the class `User::DisplayNameBuilder`. By using the first name and the first letter of the last name, the code generates a display name for the user. Whenever it finds a user with a similar display name, it adds a number to the display name and increases it until it finds an available name. The problem is that many similar users have the same display_name `klaus_m` + number. Because of that, the code tries to increase the last number until 999, and when it reaches that number, it raises the error `StandardError: cannot generate a display_name for this user`
+→ The error happened inside the method `next_display_name` of the class `User::DisplayNameBuilder`. By using the first name and the first letter of the last name, the code generates a display name for the user. Whenever it finds a user with a similar display name, it adds a number to the display name and increases it until it finds an available name. The problem is that many similar users have the same display_name `klaus_m` + number. Because of that, the code tries to increase the last number until 999, and when it reaches that number, it raises the error `StandardError: cannot generate a display_name for this user`
 
 ```ruby
 @counter >= 999 and raise 'cannot generate a display_name for this user'
@@ -19,14 +19,13 @@
 
 ### 2️⃣ What would be the options to fix it?
 
-- One of the options to fix this problem would be to change the instance counter variable to
+→ One of the options to fix this problem would be to change the instance counter variable to
 
 ```ruby
 @counter = User.where("display_name LIKE ?", "#{@base_display_name}%").count
 ```
 
-  This way, we can know how many `display_name`s that share the same base_display_name exists.
-Then we could change the `next_display_name` method to
+→ As a result, we are now able to determine how many `display_name`s share the same `base_display_name`. Next, we can change the `next_display_name` method to:
 
 ```ruby
 class User::DisplayNameBuilder
@@ -34,7 +33,7 @@ class User::DisplayNameBuilder
 
   def next_display_name
     display_name = base_display_name.first(17)
-    display_name = "#{display_name}#{@counter}" unless @counter.zero? # Adds the counter number to the end of the display_name if the counter is not zero anymore.
+    display_name = "#{display_name}#{@counter}" unless @counter.zero? # When the counter is no longer zero, the counter number is added to the end of the display_name variable.
     return display_name if display_name_available?(display_name)
     
     generate_token(10)
@@ -44,15 +43,20 @@ class User::DisplayNameBuilder
 end
 ```
 
-If `display_name` is unavailable, we have to guarantee that at least it will generate a token for the user as a display name. Since the user has no control over this generation, raising an error, in this case, makes no sense.
+→ When `display_name` is somehow unavailable, we return the `generated_token` to guarantee that at least it will give the user a display name. As the user is unable to control this generation, **raising an error in this case would only frustrate the user.** 😓
 
-The other option to solve this problem is to increase the maximum counter number, but I am certain that this will not scale well since it will eventually reach the max counter limit for some display_name and raise the error again.
+→ Due to those changes, we should also change the tests and add some new ones.
 
-We could also use the user id instead of the counter variable, but this would put at risk existing `display_name`s that might conflict and would require extra work for the moment. In the case of an auto-incremented integer ID, it would also reveal the number of users we have, which may not be desirable.
+### 💭 Alternatives?
+
+→ Another option to solve this problem is to **increase the maximum counter number**, but I am certain that this **will not scale well** since it will eventually reach the max counter limit for some `display_name` and raise the error again.
+
+→ We could also use the user id instead of the counter variable, but this would put at risk existing `display_name`s that might conflict and **would require extra work for the moment.** In the case of an auto-incremented integer ID, it would also reveal the number of users we have, which may not be desirable.
+
 
 ### 3️⃣ Thoughts on the code
 
-There are some things that we can improve.
+→ There are some things that we can improve.
 
 3.1. On `assign_display_name!`, we can move the early return condition to the callback call in the model, avoiding initializing the class.
 
@@ -105,11 +109,11 @@ end
 
 3.4. EXTRA: we could also add `validate_uniqueness_of :display_name` to the user model if that is what we wish to achieve. In order to accomplish this, we would need to change the callback call to `before_validation :build_display_name, on: :create`.
 
-3.5. EXTRA: the method `generate_token` is not used outside the class, far as shown to me. This indicates that if it is not used anywhere else, it should be refactored as the default size variable and the block variable are never used.
+3.5. EXTRA: the method `generate_token` is not used outside the class, according to the shown files. This indicates that if it is not used anywhere else, it should be refactored, as the default size variable and the block variable are unused.
 
 ## ✨ The final code
 
-As a result of these changes, the final code would look as follows:
+→ As a result of these changes, the final code would look as follows:
 
 ```ruby
 # app/models/user.rb
