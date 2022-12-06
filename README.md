@@ -1,5 +1,14 @@
 # ⚔️ Challenge Answers
 
+* [❓ Questions](#-questions)
+* [📃 Answers](#-questions)
+  * [1️⃣ Can you find out where the error happened? Can you explain why the code failed now, but not before?](#1%EF%B8%8F%E2%83%A3-can-you-find-out-where-the-error-happened-can-you-explain-why-the-code-failed-now-but-not-before)
+  * [2️⃣ What would be the options to fix it?](#2%EF%B8%8F%E2%83%A3-what-would-be-the-options-to-fix-it)
+  * [💭 Alternatives?](#-alternatives)
+  * [3️⃣ Thoughts on the code](#3%EF%B8%8F%E2%83%A3-thoughts-on-the-code)
+* [✨ The final code](#-the-final-code)
+* [🌻 Thank you](#-thank-you)
+
 ## ❓ Questions
 
 - Can you find out where the error happened?
@@ -11,7 +20,7 @@
 
 ### 1️⃣ Can you find out where the error happened? Can you explain why the code failed now, but not before?
 
-→ The error happened inside the method `next_display_name` of the class `User::DisplayNameBuilder`. By using the first name and the first letter of the last name, the code generates a display name for the user. Whenever it finds a user with a similar display name, it adds a number to the display name and increases it until it finds an available name. The problem is that many similar users have the same display_name `klaus_m` + number. Because of that, the code tries to increase the last number until 999, and when it reaches that number, it raises the error `StandardError: cannot generate a display_name for this user`
+→ The error happened inside the method `next_display_name` of the class `User::DisplayNameBuilder`. By using the first name and the first letter of the last name, the code generates a display name for the user. Whenever it finds a user with a similar display name, it adds a number and increases it until it finds an available name. The problem is that many similar users have the same display_name `klaus_m` + number. Because of that, the code tries to increase the last number until 999, and when it reaches that number, it raises the error `StandardError: cannot generate a display_name for this user`. Here is the line of code where it occurs:
 
 ```ruby
 @counter >= 999 and raise 'cannot generate a display_name for this user'
@@ -25,7 +34,7 @@
 @counter = User.where("display_name LIKE ?", "#{@base_display_name}%").count
 ```
 
-→ As a result, we are now able to determine how many `display_name`s share the same `base_display_name`. Next, we can change the `next_display_name` method to:
+→ As a result, we can now determine how many `display_name`s share the same `base_display_name`. Next, we can change the `next_display_name` method to:
 
 ```ruby
 class User::DisplayNameBuilder
@@ -43,7 +52,7 @@ class User::DisplayNameBuilder
 end
 ```
 
-→ When `display_name` is somehow unavailable, we return the `generated_token` to guarantee that at least it will give the user a display name. As the user is unable to control this generation, **raising an error in this case would only frustrate the user.** 😓
+→ When `display_name` is somehow unavailable, we return the `generated_token` to guarantee that at least it will give the user a display name. As the user cannot control this generation, **raising an error, in this case, would only frustrate the user.** 😓
 
 → Due to those changes, we should also change the tests and add some new ones.
 
@@ -58,7 +67,7 @@ end
 
 → There are some things that we can improve.
 
-3.1. On `assign_display_name!`, we can move the early return condition to the callback call in the model, avoiding initializing the class.
+3.1. On `assign_display_name!`, we can move the early return condition to the callback call in the `User` model, avoiding initializing the class.
 
 ```ruby
 # app/models/user.rb
@@ -81,7 +90,7 @@ class User::DisplayNameBuilder
 end
 ```
 
-3.2. On the `generate_base_display_name` method, if the full name is blank we can do an early return with the token, as expected.
+3.2. On the `generate_base_display_name` method, if the `first_name` and `last_name` are blank, we can do an early return with the token, as expected.
 
 ```ruby
 # app/models/user/display_name_builder.rb
@@ -93,7 +102,7 @@ class User::DisplayNameBuilder
 
     base = escape(user.first_name.to_s[/\A\s*(\S+)/, 1])
     first_last_name_character(user).full? { |char| base << "_#{char}" }
-    # PS: I couldn't understand where .full? comes from and what it exactly does.
+    # PS: I could not understand where .full? method comes from, and what it exactly does.
 
     base.full?(:first, 20) || generate_token(10)
   end
@@ -107,9 +116,9 @@ end
 
 3.3. It is possible to make some methods private, based on what we really need to expose from this class.
 
-3.4. EXTRA: we could also add `validate_uniqueness_of :display_name` to the user model if that is what we wish to achieve. In order to accomplish this, we would need to change the callback call to `before_validation :build_display_name, on: :create`.
+3.4. EXTRA: we could also add `validate_uniqueness_of :display_name` to the user model if we wish to achieve that. To accomplish this, we need to change the callback call in the model file to `before_validation :build_display_name, on: :create`.
 
-3.5. EXTRA: the method `generate_token` is not used outside the class, according to the shown files. This indicates that if it is not used anywhere else, it should be refactored, as the default size variable and the block variable are unused.
+3.5. EXTRA: the method `generate_token` is not used outside the class, according to the shown files. This indicates that it should be refactored if not used anywhere else, as the default `size` variable and the `block` variable are unused.
 
 ## ✨ The final code
 
